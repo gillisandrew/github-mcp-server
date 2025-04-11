@@ -120,28 +120,23 @@ func runStdioServer(cfg runConfig) error {
 		host = viper.GetString("gh-host")
 	}
 
-	// Check if a token is set
-	token := os.Getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
-
-	// Create GH client
-	ghClientOptions := api.ClientOptions{
+	// Create GitHub API client
+	httpClient, err := api.NewHTTPClient(api.ClientOptions{
 		Host:      host,
-		AuthToken: token,
-	}
-
-	httpClient, err := api.NewHTTPClient(ghClientOptions)
+		AuthToken: os.Getenv("GITHUB_PERSONAL_ACCESS_TOKEN"),
+	})
 	if err != nil {
-		return fmt.Errorf("failed to create GitHub client: %w", err)
+		return fmt.Errorf("failed to create client: %w", err)
 	}
 	ghClient := gogithub.NewClient(httpClient)
 	ghClient.UserAgent = fmt.Sprintf("github-mcp-server/%s", version)
 
-	t, dumpTranslations := translations.TranslationHelper()
-
 	getClient := func(_ context.Context) (*gogithub.Client, error) {
 		return ghClient, nil // closing over client
 	}
-	// Create
+
+	// Create MCP server
+	t, dumpTranslations := translations.TranslationHelper()
 	ghServer := github.NewServer(getClient, version, cfg.readOnly, t)
 	stdioServer := server.NewStdioServer(ghServer)
 
