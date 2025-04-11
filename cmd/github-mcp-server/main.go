@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/github-mcp-server/pkg/github"
 	iolog "github.com/github/github-mcp-server/pkg/log"
 	"github.com/github/github-mcp-server/pkg/translations"
@@ -113,27 +114,27 @@ func runStdioServer(cfg runConfig) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Create GH client
-	token := os.Getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
-	if token == "" {
-		cfg.logger.Fatal("GITHUB_PERSONAL_ACCESS_TOKEN not set")
-	}
-	ghClient := gogithub.NewClient(nil).WithAuthToken(token)
-	ghClient.UserAgent = fmt.Sprintf("github-mcp-server/%s", version)
-
 	// Check GH_HOST env var first, then fall back to viper config
 	host := os.Getenv("GH_HOST")
 	if host == "" {
 		host = viper.GetString("gh-host")
 	}
 
-	if host != "" {
-		var err error
-		ghClient, err = ghClient.WithEnterpriseURLs(host, host)
-		if err != nil {
-			return fmt.Errorf("failed to create GitHub client with host: %w", err)
-		}
+	// Check if a token is set
+	token := os.Getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
+
+	// Create GH client
+	ghClientOptions := api.ClientOptions{
+		Host:      host,
+		AuthToken: token,
 	}
+
+	httpClient, err := api.NewHTTPClient(ghClientOptions)
+	if err != nil {
+		return fmt.Errorf("failed to create GitHub client: %w", err)
+	}
+	ghClient := gogithub.NewClient(httpClient)
+	ghClient.UserAgent = fmt.Sprintf("github-mcp-server/%s", version)
 
 	t, dumpTranslations := translations.TranslationHelper()
 
