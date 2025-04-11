@@ -126,7 +126,7 @@ func runStdioServer(cfg runConfig) error {
 		AuthToken: os.Getenv("GITHUB_PERSONAL_ACCESS_TOKEN"),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		cfg.logger.Fatalf("failed to create HTTP client: %v", err)
 	}
 	ghClient := gogithub.NewClient(httpClient)
 	ghClient.UserAgent = fmt.Sprintf("github-mcp-server/%s", version)
@@ -137,6 +137,7 @@ func runStdioServer(cfg runConfig) error {
 
 	// Create MCP server
 	t, dumpTranslations := translations.TranslationHelper()
+
 	ghServer := github.NewServer(getClient, version, cfg.readOnly, t)
 	stdioServer := server.NewStdioServer(ghServer)
 
